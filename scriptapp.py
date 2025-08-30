@@ -232,6 +232,50 @@ if pagina == "Análise":
                 ax.text(p.get_x()+p.get_width()/2,p.get_height()+max(df_filt["Total"])*0.01,f'{int(p.get_height())}',ha='center')
             st.pyplot(fig)
 
+    # ================================
+    # NOVA ANÁLISE: Percentual 2ª linha
+    # ================================
+    st.markdown("---")
+    st.subheader("📦 Percentual de Caixas de 2ª Linha")
+
+    # Por Produto
+    df_prod_pct = (
+        df_filt.groupby("Produto")[["Caixas","Caixas de Segunda"]]
+        .sum()
+        .reset_index()
+    )
+    df_prod_pct["Pct_2a"] = (df_prod_pct["Caixas de Segunda"] / (df_prod_pct["Caixas"] + df_prod_pct["Caixas de Segunda"])) * 100
+
+    fig, ax = plt.subplots(figsize=(10,5))
+    sns.barplot(data=df_prod_pct, x="Produto", y="Pct_2a", ax=ax, palette="viridis")
+    ax.set_ylabel("% Caixas 2ª")
+    ax.set_title("Percentual de Caixas de 2ª por Produto")
+    ax.bar_label(ax.containers[0], fmt="%.1f%%")
+    st.pyplot(fig)
+
+    # Por Local
+    df_loc_pct = (
+        df_filt.groupby("Local")[["Caixas","Caixas de Segunda"]]
+        .sum()
+        .reset_index()
+    )
+    df_loc_pct["Pct_2a"] = (df_loc_pct["Caixas de Segunda"] / (df_loc_pct["Caixas"] + df_loc_pct["Caixas de Segunda"])) * 100
+
+    fig, ax = plt.subplots(figsize=(10,5))
+    sns.barplot(data=df_loc_pct, x="Local", y="Pct_2a", ax=ax, palette="mako")
+    ax.set_ylabel("% Caixas 2ª")
+    ax.set_title("Percentual de Caixas de 2ª por Local")
+    ax.bar_label(ax.containers[0], fmt="%.1f%%")
+    st.pyplot(fig)
+
+    # Resumo em Tabela
+    st.markdown("#### 📑 Resumo Percentuais")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.dataframe(df_prod_pct[["Produto","Caixas","Caixas de Segunda","Pct_2a"]])
+    with col2:
+        st.dataframe(df_loc_pct[["Local","Caixas","Caixas de Segunda","Pct_2a"]])
+
     # Insights
     st.markdown("---")
     st.markdown("### 🧠 Insights")
