@@ -75,13 +75,6 @@ st.subheader("💰 Análise Financeira Detalhada")
 
 col1, col2 = st.columns(2)
 
-with col1:
-    # Distribuição de custos
-    fig_custos = px.pie(values=list(custos.values()), names=list(custos.keys()),
-                       title="Distribuição de Custos", hole=0.4)
-    fig_custos.update_traces(textposition='inside', textinfo='percent+label+value')
-    st.plotly_chart(fig_custos, use_container_width=True)
-
 with col2:
     # Comparação Receita vs Lucro
     categorias = ['Custos', 'Lucro']
