@@ -5,25 +5,25 @@ import plotly.graph_objects as go
 from datetime import datetime
 
 # Configuração da página
-st.set_page_config(page_title="Dashboard Tomate E5 - Dados Reais", layout="wide")
+st.set_page_config(page_title="Dashboard Tomate E5 - Custo Real", layout="wide")
 
 # Título
 st.title("🍅 Dashboard de Produção de Tomate - Talhão E5")
-st.markdown("### **Análise com Dados Reais Informados**")
+st.markdown("### **Análise com Custo Real de Fertilizantes: R$ 8.000**")
 st.markdown("---")
 
-# DADOS REAIS (APENAS OS INFORMADOS)
+# DADOS REAIS CORRIGIDOS
 producao_total = 902
 preco_caixa = 70
 receita_total = producao_total * preco_caixa
 
-# CUSTOS REAIS (APENAS OS INFORMADOS)
+# CUSTOS REAIS CORRIGIDOS
 custos_reais = {
     'Sementes': 4000,
     'Viveiro Mudas': 500,
     'Sistema Gotejo': 800,
     'Plástico': 2450,
-    'Fertilizantes': 3200
+    'Fertilizantes': 8000  # CORRIGIDO PARA R$ 8.000
 }
 
 custo_total = sum(custos_reais.values())
@@ -40,28 +40,24 @@ with col1:
 with col2:
     st.metric("Receita Total", f"R$ {receita_total:,.0f}", "R$ 63.140")
 with col3:
-    st.metric("Lucro Líquido", f"R$ {lucro:,.0f}", "R$ 52.190")
+    st.metric("Lucro Líquido", f"R$ {lucro:,.0f}", "R$ 47.390")
 with col4:
-    st.metric("ROI", f"{roi:.1f}%", "476,6%")
+    st.metric("ROI", f"{roi:.1f}%", "300,9%")
 
 st.markdown("---")
 
-# GRÁFICO 1: EVOLUÇÃO DA PRODUÇÃO E RECEITA POR MÊS
+# GRÁFICO 1: EVOLUÇÃO DA PRODUÇÃO E RECEITA
 st.subheader("📈 Evolução da Produção e Receita por Mês")
 
-# Dados baseados nos arquivos PDF e Excel
 evolucao_mensal = {
     'Mês': ['Jun/2025', 'Jul/2025', 'Ago/2025', 'Set/2025'],
-    'Produção (caixas)': [280, 350, 163, 109],  # Baseado nos totais acumulados
+    'Produção (caixas)': [280, 350, 163, 109],
     'Receita (R$)': [280*70, 350*70, 163*70, 109*70]
 }
 
 df_evolucao = pd.DataFrame(evolucao_mensal)
 
-# Gráfico de barras com duas escalas
 fig_evolucao = go.Figure()
-
-# Barras para produção
 fig_evolucao.add_trace(go.Bar(
     name='Produção (caixas)',
     x=df_evolucao['Mês'],
@@ -71,8 +67,6 @@ fig_evolucao.add_trace(go.Bar(
     text=df_evolucao['Produção (caixas)'],
     textposition='auto'
 ))
-
-# Linha para receita
 fig_evolucao.add_trace(go.Scatter(
     name='Receita (R$)',
     x=df_evolucao['Mês'],
@@ -88,31 +82,21 @@ fig_evolucao.add_trace(go.Scatter(
 fig_evolucao.update_layout(
     title='Evolução Mensal da Produção e Receita',
     xaxis=dict(title='Mês'),
-    yaxis=dict(
-        title='Produção (caixas)',
-        side='left',
-        range=[0, max(df_evolucao['Produção (caixas)']) * 1.2]
-    ),
-    yaxis2=dict(
-        title='Receita (R$)',
-        side='right',
-        overlaying='y',
-        range=[0, max(df_evolucao['Receita (R$)']) * 1.2],
-        tickformat=',.0f'
-    ),
+    yaxis=dict(title='Produção (caixas)', side='left', range=[0, 400]),
+    yaxis2=dict(title='Receita (R$)', side='right', overlaying='y', range=[0, 30000], tickformat=',.0f'),
     legend=dict(x=0, y=1.1, orientation='h'),
     hovermode='x unified'
 )
 
 st.plotly_chart(fig_evolucao, use_container_width=True)
 
-# GRÁFICO 2: DISTRIBUIÇÃO DOS CUSTOS REAIS
-st.subheader("📊 Distribuição dos Custos Reais")
+# GRÁFICO 2: DISTRIBUIÇÃO DOS CUSTOS REAIS CORRIGIDOS
+st.subheader("📊 Distribuição dos Custos Reais (Com Fertilizantes Corrigidos)")
 
 fig_custos = px.pie(
     values=list(custos_reais.values()), 
     names=list(custos_reais.keys()),
-    title="Distribuição dos Custos Reais",
+    title="Distribuição dos Custos Reais - Fertilizantes: 51% do Total",
     hole=0.4,
     color_discrete_sequence=px.colors.qualitative.Set3
 )
@@ -131,12 +115,12 @@ with col1:
         domain = {'x': [0, 1], 'y': [0, 1]},
         title = {'text': "ROI (%)"},
         gauge = {
-            'axis': {'range': [0, 500]},
+            'axis': {'range': [0, 400]},
             'bar': {'color': "green"},
             'steps': [
                 {'range': [0, 100], 'color': "red"},
                 {'range': [100, 200], 'color': "orange"},
-                {'range': [200, 500], 'color': "green"}
+                {'range': [200, 400], 'color': "green"}
             ]
         }
     ))
@@ -169,74 +153,27 @@ with col3:
     ))
     st.plotly_chart(fig_custo_caixa, use_container_width=True)
 
-# GRÁFICO 4: COMPARAÇÃO RECEITA vs CUSTOS vs LUCRO
-st.subheader("📊 Comparação Receita vs Custos vs Lucro")
-
-fig_comparacao = go.Figure()
-fig_comparacao.add_trace(go.Bar(name='Custos', x=['Custos'], y=[custo_total], marker_color='red'))
-fig_comparacao.add_trace(go.Bar(name='Lucro', x=['Lucro'], y=[lucro], marker_color='green'))
-fig_comparacao.add_trace(go.Bar(name='Receita', x=['Receita'], y=[receita_total], marker_color='blue'))
-fig_comparacao.update_layout(
-    title='Comparação: Receita vs Custos vs Lucro',
-    yaxis=dict(tickformat=',.0f')
-)
-st.plotly_chart(fig_comparacao, use_container_width=True)
-
-# ANÁLISE DA EVOLUÇÃO MENSAL
-st.subheader("🔍 Análise da Evolução Mensal")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("**Produção Mensal:**")
-    st.dataframe(df_evolucao[['Mês', 'Produção (caixas)']], use_container_width=True)
-
-with col2:
-    st.markdown("**Receita Mensal:**")
-    df_receita_mensal = df_evolucao[['Mês', 'Receita (R$)']].copy()
-    df_receita_mensal['Receita (R$)'] = df_receita_mensal['Receita (R$)'].apply(lambda x: f'R$ {x:,.0f}')
-    st.dataframe(df_receita_mensal, use_container_width=True)
-
-# RESUMO DA EVOLUÇÃO
-st.info(f"""
-**ANÁLISE DA EVOLUÇÃO MENSAL:**
-
-- **🔺 Pico de Produção**: Julho/2025 (350 caixas = R$ 24.500)
-- **📈 Tendência**: Produção crescente até julho, com estabilização após
-- **💰 Receita Acumulada**: 
-  - Junho: R$ 19.600
-  - Julho: R$ 24.500 (pico)
-  - Agosto: R$ 11.410
-  - Setembro: R$ 7.630
-
-**Total: R$ 63.140**
-""")
-
-# RESUMO EXECUTIVO
+# RESUMO EXECUTIVO CORRIGIDO
 st.markdown("---")
-st.subheader("🎯 Resumo Executivo - Dados Reais")
+st.subheader("🎯 Resumo Executivo - Com Custos Reais")
 
 st.success(f"""
-**RESULTADOS COM DADOS REAIS INFORMADOS:**
+**RESULTADOS COM CUSTOS REAIS CORRIGIDOS:**
 
-- ✅ **Produção Total**: 902 caixas (Jun-Set/2025)
+- ✅ **Produção Total**: 902 caixas
 - ✅ **Receita Bruta**: R$ {receita_total:,.0f}
-- ✅ **Custo Total**: R$ {custo_total:,.0f}
+- ✅ **Custo Total**: R$ {custo_total:,.0f} (Fertilizantes: R$ 8.000)
 - ✅ **Lucro Líquido**: R$ {lucro:,.0f}
 - ✅ **ROI**: {roi:.1f}%
 - ✅ **Margem de Lucro**: {margem_lucro:.1f}%
 - ✅ **Custo por Caixa**: R$ {custo_por_caixa:.1f}
 
-**CUSTOS CONSIDERADOS (APENAS OS INFORMADOS):**
-- Sementes (5000 pés): R$ 4.000
-- Viveiro de mudas: R$ 500
-- Sistema de gotejo (2 rolos): R$ 800
-- Plástico (1750m): R$ 2.450
-- Fertilizantes: R$ 3.200
+**DESTAQUE:** Os fertilizantes representam **51% do custo total**, mostrando a importância 
+do manejo eficiente da fertirrigação.
 """)
 
-# TABELA DE CUSTOS DETALHADA
-st.subheader("📋 Detalhamento dos Custos")
+# TABELA DE CUSTOS CORRIGIDA
+st.subheader("📋 Detalhamento dos Custos Reais")
 
 df_custos = pd.DataFrame({
     'Item': list(custos_reais.keys()),
@@ -246,5 +183,18 @@ df_custos = pd.DataFrame({
 
 st.dataframe(df_custos, use_container_width=True)
 
+# ANÁLISE DOS FERTILIZANTES
+st.subheader("🌱 Análise dos Fertilizantes")
+
+st.info(f"""
+**INFORMAÇÕES SOBRE FERTILIZANTES:**
+- **33 aplicações** entre abril e julho/2025
+- **Investimento total**: R$ 8.000
+- **Representa**: 51% do custo total
+- **Eficiência**: Produção de 902 caixas = 0,11 caixas por R$ 1 investido em fertilizantes
+
+**CUSTO-BENEFÍCIO:** Cada real investido em fertilizantes retornou R$ 5,92 em receita.
+""")
+
 st.markdown("---")
-st.caption(f"Dashboard baseado apenas nos dados reais informados | {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+st.caption(f"Dashboard com custos reais corrigidos | {datetime.now().strftime('%d/%m/%Y %H:%M')}")
