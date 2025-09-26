@@ -1,301 +1,167 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-import requests
-import urllib.parse
-from datetime import date, datetime
-from io import BytesIO
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime
 
-# ================================
-# CONFIGURAÇÕES INICIAIS
-# ================================
-st.set_page_config(
-    page_title="🌱 Gerenciador de Produção",
-    layout="wide",
-    initial_sidebar_state="expanded",
+# Configuração da página
+st.set_page_config(page_title="Dashboard Tomate E5 - Análise Premium", layout="wide")
+
+# Título
+st.title("🍅 Dashboard de Produção de Tomate - Talhão E5")
+st.markdown("### **Análise com Valor de Venda: R$ 70,00 por caixa**")
+st.markdown("---")
+
+# DADOS REAIS CORRIGIDOS
+producao_total = 902
+preco_caixa = 70
+receita_total = producao_total * preco_caixa
+
+custos = {
+    'Fertilizantes': 3200,
+    'Mão de Obra': 3000,
+    'Irrigação/Energia': 1200,
+    'Outros': 600
+}
+
+custo_total = sum(custos.values())
+lucro = receita_total - custo_total
+roi = (lucro / custo_total) * 100
+
+# KPI's PRINCIPAIS
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric("Produção Total", f"{producao_total} caixas", "902 caixas")
+with col2:
+    st.metric("Receita Total", f"R$ {receita_total:,.0f}", "R$ 63.140", delta_color="off")
+with col3:
+    st.metric("Lucro Líquido", f"R$ {lucro:,.0f}", "R$ 55.140")
+with col4:
+    st.metric("ROI", f"{roi:.1f}%", "689,3%")
+
+st.markdown("---")
+
+# GRÁFICO 1: EVOLUÇÃO DA PRODUÇÃO
+st.subheader("📈 Evolução da Produção e Receita")
+
+producao_mensal = {
+    'Mês': ['Jun/25', 'Jul/25', 'Ago/25', 'Set/25'],
+    'Produção (cx)': [280, 350, 163, 109],
+    'Receita (R$)': [280*70, 350*70, 163*70, 109*70]
+}
+
+df_mensal = pd.DataFrame(producao_mensal)
+
+fig = go.Figure()
+fig.add_trace(go.Bar(name='Produção (cx)', x=df_mensal['Mês'], y=df_mensal['Produção (cx)'],
+                    yaxis='y', offsetgroup=1))
+fig.add_trace(go.Scatter(name='Receita (R$)', x=df_mensal['Mês'], y=df_mensal['Receita (R$)'],
+                        yaxis='y2', line=dict(color='red', width=3)))
+
+fig.update_layout(
+    title='Produção Mensal vs Receita',
+    xaxis=dict(title='Mês'),
+    yaxis=dict(title='Produção (caixas)', side='left'),
+    yaxis2=dict(title='Receita (R$)', side='right', overlaying='y'),
+    legend=dict(x=0, y=1.1, orientation='h')
 )
-plt.style.use("dark_background")
 
-ARQUIVO_DADOS = "colheitas.xlsx"
-API_KEY = "eef20bca4e6fb1ff14a81a3171de5cec"  # sua chave OpenWeather
-CIDADE_PADRAO = "Londrina"
+st.plotly_chart(fig, use_container_width=True)
 
-# ================================
-# FUNÇÕES AUXILIARES
-# ================================
-def carregar_dados():
-    try:
-        return pd.read_excel(ARQUIVO_DADOS)
-    except:
-        return pd.DataFrame(columns=["Data","Local","Produto","Caixas","Caixas de Segunda","Temperatura","Umidade","Chuva"])
+# GRÁFICO 2: ANÁLISE FINANCEIRA DETALHADA
+st.subheader("💰 Análise Financeira Detalhada")
 
-def salvar_dados(df):
-    df.to_excel(ARQUIVO_DADOS, index=False)
+col1, col2 = st.columns(2)
 
-def normalizar_colunas(df):
-    df = df.copy()
-    col_map = {
-        "Estufa":"Local",
-        "Área":"Local",
-        "Produção":"Caixas",
-        "Primeira":"Caixas",
-        "Segunda":"Caixas de Segunda",
-        "Qtd":"Caixas",
-        "Quantidade":"Caixas",
-    }
-    df.rename(columns={c:col_map.get(c,c) for c in df.columns}, inplace=True)
-    if "Data" in df.columns:
-        df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
-    for col in ["Caixas","Caixas de Segunda","Temperatura","Umidade","Chuva"]:
-        if col not in df.columns:
-            df[col] = 0
-    if "Local" not in df.columns: df["Local"] = ""
-    if "Produto" not in df.columns: df["Produto"] = ""
-    return df
+with col1:
+    # Distribuição de custos
+    fig_custos = px.pie(values=list(custos.values()), names=list(custos.keys()),
+                       title="Distribuição de Custos", hole=0.4)
+    fig_custos.update_traces(textposition='inside', textinfo='percent+label+value')
+    st.plotly_chart(fig_custos, use_container_width=True)
 
-def plot_bar(ax, x, y, df, cores, titulo, ylabel):
-    df.groupby(x)[y].sum().plot(kind="bar", ax=ax, color=cores, width=0.6)
-    ax.set_title(titulo, fontsize=14)
-    ax.set_ylabel(ylabel)
-    ax.grid(axis="y", linestyle="--", alpha=0.7)
-    for p in ax.patches:
-        ax.text(p.get_x() + p.get_width()/2, p.get_height() + 0.01*df[y].max(), 
-                f"{int(p.get_height())}", ha="center")
+with col2:
+    # Comparação Receita vs Lucro
+    categorias = ['Custos', 'Lucro']
+    valores = [custo_total, lucro]
+    cores = ['#FF6B6B', '#51CF66']
+    
+    fig_comparacao = px.bar(x=categorias, y=valores, title='Lucro vs Custos',
+                           color=categorias, color_discrete_sequence=cores)
+    fig_comparacao.update_layout(showlegend=False)
+    st.plotly_chart(fig_comparacao, use_container_width=True)
 
-def clima_atual(cidade):
-    """Busca clima atual no OpenWeather"""
-    try:
-        city_encoded = urllib.parse.quote(cidade)
-        url = f"https://api.openweathermap.org/data/2.5/weather?q={city_encoded}&appid={API_KEY}&units=metric&lang=pt_br"
-        r = requests.get(url)
-        data = r.json()
-        if r.status_code != 200:
-            return None
-        return {
-            "temp": data["main"]["temp"],
-            "umidade": data["main"]["humidity"],
-            "chuva": data.get("rain", {}).get("1h", 0)
-        }
-    except:
-        return None
+# GRÁFICO 3: ROI E MARGEM DE LUCRO
+st.subheader("📊 Indicadores de Rentabilidade")
 
-# ================================
-# MENU PRINCIPAL
-# ================================
-st.sidebar.title("📌 Menu")
-pagina = st.sidebar.radio("Escolha a página:", ["Cadastro de Produção","Análise"])
+col1, col2, col3 = st.columns(3)
 
-# ================================
-# PÁGINA CADASTRO
-# ================================
-if pagina == "Cadastro de Produção":
-    st.title("📝 Cadastro de Produção")
-    df = carregar_dados()
-    cidade = st.sidebar.text_input("🌍 Cidade para clima", value=CIDADE_PADRAO)
+with col1:
+    margem_lucro = (lucro / receita_total) * 100
+    fig_margem = go.Figure(go.Indicator(
+        mode = "gauge+number+delta",
+        value = margem_lucro,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "Margem de Lucro (%)"},
+        gauge = {'axis': {'range': [0, 100]},
+                'bar': {'color': "green"},
+                'steps': [{'range': [0, 50], 'color': "lightgray"},
+                         {'range': [50, 100], 'color': "gray"}]}
+    ))
+    st.plotly_chart(fig_margem, use_container_width=True)
 
-    with st.form("form_cadastro", clear_on_submit=True):
-        col1,col2,col3 = st.columns(3)
-        with col1:
-            data = st.date_input("Data", value=date.today())
-            local = st.text_input("Local/Estufa")
-        with col2:
-            produto = st.text_input("Produto")
-            caixas = st.number_input("Caixas (1ª)", min_value=0, step=1)
-        with col3:
-            caixas2 = st.number_input("Caixas (2ª)", min_value=0, step=1)
+with col2:
+    fig_roi = go.Figure(go.Indicator(
+        mode = "number+delta",
+        value = roi,
+        number = {'prefix': "", 'suffix': "%"},
+        title = {'text': "ROI (Retorno sobre Investimento)"},
+        delta = {'reference': 100, 'relative': False}
+    ))
+    st.plotly_chart(fig_roi, use_container_width=True)
 
-        # Busca clima automático
-        clima = clima_atual(cidade)
-        if clima:
-            temperatura = clima["temp"]
-            umidade = clima["umidade"]
-            chuva = clima["chuva"]
-            st.info(f"Clima carregado: 🌡️ {temperatura}°C | 💧 {umidade}% | 🌧️ {chuva}mm")
-        else:
-            temperatura = st.number_input("Temperatura (°C)", min_value=0.0, step=0.1)
-            umidade = st.number_input("Umidade (%)", min_value=0.0, step=0.1)
-            chuva = st.number_input("Chuva (mm)", min_value=0.0, step=0.1)
+with col3:
+    custo_por_caixa = custo_total / producao_total
+    fig_custo_caixa = go.Figure(go.Indicator(
+        mode = "number",
+        value = custo_por_caixa,
+        number = {'prefix': "R$ "},
+        title = {'text': "Custo por Caixa"}
+    ))
+    st.plotly_chart(fig_custo_caixa, use_container_width=True)
 
-        enviado = st.form_submit_button("Salvar Registro ✅")
-        if enviado:
-            novo = pd.DataFrame([{
-                "Data": pd.to_datetime(data),
-                "Local": local,
-                "Produto": produto,
-                "Caixas": caixas,
-                "Caixas de Segunda": caixas2,
-                "Temperatura": temperatura,
-                "Umidade": umidade,
-                "Chuva": chuva
-            }])
-            df = pd.concat([df, novo], ignore_index=True)
-            salvar_dados(df)
-            st.success("Registro salvo com sucesso!")
+# RESUMO EXECUTIVO
+st.markdown("---")
+st.subheader("🎯 Resumo Executivo")
 
-    if not df.empty:
-        st.markdown("### 📋 Registros já cadastrados")
-        st.dataframe(df.tail(10), use_container_width=True)
+st.success(f"""
+**RESULTADOS FINANCEIROS COM R$ 70/CAIXA:**
 
-# ================================
-# PÁGINA ANÁLISE
-# ================================
-if pagina == "Análise":
-    st.title("📊 Análise")
-    st.markdown("Escolha a fonte de dados:")
-    fonte = st.radio("Fonte de dados:", ["Usar dados cadastrados no app","Enviar um arquivo Excel"], horizontal=True)
+- ✅ **Receita Bruta**: R$ {receita_total:,.0f}
+- ✅ **Custo Total**: R$ {custo_total:,.0f}
+- ✅ **Lucro Líquido**: R$ {lucro:,.0f}
+- ✅ **ROI**: {roi:.1f}% (Excelente!)
+- ✅ **Margem de Lucro**: {margem_lucro:.1f}%
+- ✅ **Custo por Caixa**: R$ {custo_por_caixa:.1f}
 
-    df_raw = None
-    if fonte == "Usar dados cadastrados no app":
-        df_raw = carregar_dados()
-    else:
-        arquivo = st.file_uploader("Selecione um arquivo Excel", type=["xlsx","xls"])
-        if arquivo:
-            df_raw = pd.read_excel(arquivo)
+**CONCLUSÃO:** O cultivo de tomate no talhão E5 apresentou **rentabilidade excepcional** com 
+um ROI de quase 700%, demonstrando alta eficiência produtiva e excelente retorno financeiro.
+""")
 
-    if df_raw is None or df_raw.empty:
-        st.warning("Nenhum dado disponível.")
-        st.stop()
+# RECOMENDAÇÕES
+st.subheader("💡 Recomendações para Melhoria Contínua")
 
-    df_norm = normalizar_colunas(df_raw)
+recomendacoes = """
+1. **Manter estratégia de fertirrigação** - mostrou-se eficiente
+2. **Expandir área plantada** - ROI muito atraente
+3. **Diversificar variedades** - explorar tomates com maior valor agregado
+4. **Melhorar logística de colheita** - reduzir perdas pós-colheita
+5. **Negociar contratos futuros** - travar preços vantajosos
+"""
 
-    # FILTROS
-    st.sidebar.markdown("## 🔎 Filtros")
-    min_date = df_norm["Data"].min().date() if not df_norm["Data"].isna().all() else date.today()
-    max_date = df_norm["Data"].max().date() if not df_norm["Data"].isna().all() else date.today()
-    date_range = st.sidebar.date_input("Período", value=(min_date,max_date), min_value=min_date, max_value=max_date)
+st.info(recomendacoes)
 
-    locais_all = sorted(df_norm["Local"].dropna().unique())
-    locais_sel = st.sidebar.multiselect("Local (todos se vazio)", locais_all, default=locais_all)
-
-    produtos_all = sorted(df_norm["Produto"].dropna().unique())
-    produtos_sel = st.sidebar.multiselect("Produto (todos se vazio)", produtos_all, default=produtos_all)
-
-    df_filt = df_norm.copy()
-    try:
-        start_date, end_date = date_range
-    except:
-        start_date = end_date = date_range
-    df_filt = df_filt[(df_filt["Data"] >= pd.to_datetime(start_date)) & (df_filt["Data"] <= pd.to_datetime(end_date))]
-
-    if locais_sel:
-        df_filt = df_filt[df_filt["Local"].isin(locais_sel)]
-    if produtos_sel:
-        df_filt = df_filt[df_filt["Produto"].isin(produtos_sel)]
-
-    if df_filt.empty:
-        st.warning("Nenhum dado após aplicar os filtros.")
-        st.stop()
-
-    df_filt["Total"] = df_filt["Caixas"] + df_filt["Caixas de Segunda"]
-
-    # KPIs
-    total = df_filt["Total"].sum()
-    media = df_filt["Total"].mean()
-    maior = df_filt["Total"].max()
-    menor = df_filt["Total"].min()
-
-    k1,k2,k3,k4 = st.columns(4)
-    k1.metric("Total de Caixas", f"{total:,.0f}")
-    k2.metric("Média por Registro", f"{media:,.2f}")
-    k3.metric("Máximo em 1 Registro", f"{maior:,.0f}")
-    k4.metric("Mínimo em 1 Registro", f"{menor:,.0f}")
-
-    st.markdown("---")
-
-    # GRÁFICOS
-    st.subheader("🏭 Total por Local")
-    fig, ax = plt.subplots(figsize=(12,6))
-    plot_bar(ax,"Local","Total",df_filt,cores=sns.color_palette("tab20", n_colors=len(df_filt["Local"].unique())),
-             titulo="Total de Caixas por Local", ylabel="Total de Caixas")
-    st.pyplot(fig)
-
-    st.subheader("🍅 Total por Produto")
-    fig, ax = plt.subplots(figsize=(10,5))
-    plot_bar(ax,"Produto","Total",df_filt,cores=sns.color_palette("Set2", n_colors=len(df_filt["Produto"].unique())),
-             titulo="Total de Caixas por Produto", ylabel="Total de Caixas")
-    st.pyplot(fig)
-
-    # Comparativo 1ª vs 2ª
-    st.subheader("📊 Comparativo Caixas 1ª vs 2ª")
-    for tipo in ["Local","Produto"]:
-        if tipo in df_filt.columns:
-            df_comp = df_filt.groupby(tipo)[["Caixas","Caixas de Segunda"]].sum().reset_index()
-            fig, ax = plt.subplots(figsize=(12,6))
-            df_comp.plot(kind="bar", x=tipo, ax=ax, width=0.7)
-            ax.set_ylabel("Quantidade de Caixas")
-            ax.set_title(f"Caixas de Primeira vs Segunda por {tipo}")
-            ax.grid(axis="y")
-            ax.legend(["Caixas (1ª)","Caixas de Segunda"])
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
-            for p in ax.patches:
-                ax.text(p.get_x()+p.get_width()/2,p.get_height()+max(df_filt["Total"])*0.01,f'{int(p.get_height())}',ha='center')
-            st.pyplot(fig)
-
-    # ================================
-    # NOVA ANÁLISE: Percentual 2ª linha
-    # ================================
-    st.markdown("---")
-    st.subheader("📦 Percentual de Caixas de 2ª Linha")
-
-    # Por Produto
-    df_prod_pct = (
-        df_filt.groupby("Produto")[["Caixas","Caixas de Segunda"]]
-        .sum()
-        .reset_index()
-    )
-    df_prod_pct["Pct_2a"] = (df_prod_pct["Caixas de Segunda"] / (df_prod_pct["Caixas"] + df_prod_pct["Caixas de Segunda"])) * 100
-
-    fig, ax = plt.subplots(figsize=(10,5))
-    sns.barplot(data=df_prod_pct, x="Produto", y="Pct_2a", ax=ax, palette="viridis")
-    ax.set_ylabel("% Caixas 2ª")
-    ax.set_title("Percentual de Caixas de 2ª por Produto")
-    ax.bar_label(ax.containers[0], fmt="%.1f%%")
-    st.pyplot(fig)
-
-    # Por Local
-    df_loc_pct = (
-        df_filt.groupby("Local")[["Caixas","Caixas de Segunda"]]
-        .sum()
-        .reset_index()
-    )
-    df_loc_pct["Pct_2a"] = (df_loc_pct["Caixas de Segunda"] / (df_loc_pct["Caixas"] + df_loc_pct["Caixas de Segunda"])) * 100
-
-    fig, ax = plt.subplots(figsize=(10,5))
-    sns.barplot(data=df_loc_pct, x="Local", y="Pct_2a", ax=ax, palette="mako")
-    ax.set_ylabel("% Caixas 2ª")
-    ax.set_title("Percentual de Caixas de 2ª por Local")
-    ax.bar_label(ax.containers[0], fmt="%.1f%%")
-    st.pyplot(fig)
-
-    # Resumo em Tabela
-    st.markdown("#### 📑 Resumo Percentuais")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.dataframe(df_prod_pct[["Produto","Caixas","Caixas de Segunda","Pct_2a"]])
-    with col2:
-        st.dataframe(df_loc_pct[["Local","Caixas","Caixas de Segunda","Pct_2a"]])
-
-    # Insights
-    st.markdown("---")
-    st.markdown("### 🧠 Insights")
-    total_segunda = df_filt["Caixas de Segunda"].sum()
-    pct_segunda = total_segunda/total*100 if total>0 else 0
-    st.markdown(f"- Taxa de Segunda Linha: {pct_segunda:.1f}% do total ({int(total_segunda):,} caixas de 2ª)")
-
-    media_prod = df_filt.groupby("Produto")["Total"].mean().sort_values(ascending=False)
-    if not media_prod.empty:
-        st.markdown(f"- Produto com maior média por registro: {media_prod.index[0]} ({media_prod.iloc[0]:.1f} caixas/registro)")
-
-    top_local_val = df_filt.groupby("Local")["Total"].sum().sort_values(ascending=False)
-    if not top_local_val.empty:
-        st.markdown(f"- Top local: {top_local_val.index[0]} ({int(top_local_val.iloc[0]):,} caixas)")
-
-    # Download filtrado
-    st.markdown("---")
-    buffer = BytesIO()
-    df_filt.to_excel(buffer, index=False, engine="openpyxl")
-    buffer.seek(0)
-    st.download_button("📥 Baixar dados filtrados em Excel", data=buffer,
-                       file_name="colheitas_filtradas.xlsx",
-                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+st.markdown("---")
+st.caption("Dashboard gerado em " + datetime.now().strftime("%d/%m/%Y %H:%M"))
