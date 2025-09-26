@@ -7,3 +7,5 @@ plotly
 requests
 openpyxl
 reportlab
+xlrd
+python-dateutil
